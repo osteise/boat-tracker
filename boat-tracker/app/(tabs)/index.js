@@ -2,6 +2,7 @@ import * as Location from 'expo-location';
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
+import SpeedDisplay from './SpeedDisplay';
 import WindWidget from './WindWidget';
 
 import Constants from 'expo-constants';
@@ -120,6 +121,13 @@ export default function HomeScreen() {
           />
         )}
       </MapView>
+
+      {/* Speed overlay */}
+      {location && (
+        <View style={{ position: 'absolute', top: 40, left: 20, zIndex: 10 }}>
+          <SpeedDisplay speed={location.speed} />
+        </View>
+      )}
 
       {/* Wind info overlay */}
       {location && (
