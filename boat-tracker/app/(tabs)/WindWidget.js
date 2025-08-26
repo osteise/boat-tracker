@@ -98,8 +98,14 @@ export default function WindWidget({ lat, lon, apiKey, useDummy = false, cacheTt
         return;
       }
       try {
-        const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`;
-        const res = await fetch(url);
+        const url = new URL('https://api.openweathermap.org/data/2.5/weather');
+        url.search = new URLSearchParams({
+          lat: String(lat),
+          lon: String(lon),
+          appid: apiKey,
+          units: 'metric',
+        }).toString();
+        const res = await fetch(url.toString());
 
         if (!res.ok) {
           if (res.status === 401 || res.status === 403) throw new Error('Invalid or unauthorized API key');
