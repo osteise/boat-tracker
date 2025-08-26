@@ -226,9 +226,9 @@ export default function WindWidget({ lat, lon, apiKey, useDummy = false, cacheTt
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 24,
-    left: 24,
-    backgroundColor: 'rgba(255,255,255,0.95)',
+    top: 40,
+    right: 24,
+    backgroundColor: 'rgba(0,0,0,0.6)',
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: 8,
@@ -257,10 +257,12 @@ const styles = StyleSheet.create({
   arrow: {
     fontSize: 22,
     marginRight: 8,
+    color: '#fff',
   },
   speed: {
     fontSize: 14,
     fontWeight: '600',
+    color: '#fff',
   },
   weatherRow: {
     flexDirection: 'row',
@@ -271,14 +273,16 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     marginRight: 8,
+    color: '#fff',
   },
   temp: {
     fontSize: 14,
     fontWeight: '700',
+    color: '#fff',
   },
   description: {
     fontSize: 12,
-    color: '#333',
+    color: '#fff',
   },
   error: {
     color: 'red',
