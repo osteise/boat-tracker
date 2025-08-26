@@ -11,7 +11,17 @@ import {
   UIManager,
 } from 'react-native';
 
-export default function WindWidget({ lat, lon, apiKey, useDummy = false }) {
+// Simple in-memory cache: Map<key, {ts: number, data: object}>
+const CACHE = new Map();
+const DEFAULT_CACHE_TTL_MS = 4 * 60 * 1000; // 4 minutes
+
+function cacheKey(lat, lon) {
+  // round to 4 decimals so tiny GPS jitter doesn't bust cache
+  const r = (v) => (Math.round((v ?? 0) * 10000) / 10000).toFixed(4);
+  return `${r(lat)}|${r(lon)}`;
+}
+
+export default function WindWidget({ lat, lon, apiKey, useDummy = false, cacheTtlMs = DEFAULT_CACHE_TTL_MS }) {
   const [wind, setWind] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -36,41 +46,74 @@ export default function WindWidget({ lat, lon, apiKey, useDummy = false }) {
         // added weather + temp for dummy
         weather: { main: 'Clear', description: 'clear sky', icon: '01d' },
         temp: 12.3,
+        sourcedFromCache: false,
       });
       return;
     }
 
-    // require lat/lon and apiKey for real fetch
+    // If required inputs are missing, clear state and do nothing (don't show an error)
     if (lat == null || lon == null || !apiKey) {
-      console.log('WindWidget: missing lat/lon or apiKey, skipping fetch', { lat, lon, apiKeyPresent: !!apiKey });
+      setLoading(false);
+      setError(null);
+      setWind(null);
       return;
     }
 
     let mounted = true;
+    const key = cacheKey(lat, lon);
+
+    // use cached value if fresh
+    const cached = CACHE.get(key);
+    if (cached && Date.now() - cached.ts < cacheTtlMs) {
+      setWind({ ...cached.data, sourcedFromCache: true });
+      return;
+    }
+
+    let intervalId = null;
+    const DEBOUNCE_MS = 2000; // wait 1s for location stabilization
+    let debounceTimer = null;
+
     const fetchWeather = async () => {
-      console.log('WindWidget: fetching weather', { lat, lon });
       setLoading(true);
       setError(null);
       try {
         const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`;
         const res = await fetch(url);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        if (!mounted) return;
-        if (json) {
-          const fromDeg = json.wind?.deg ?? 0;
-          const toDeg = (fromDeg + 180) % 360;
-          setWind({
-            speed: json.wind?.speed ?? 0,
-            degFrom: fromDeg,
-            degTo: toDeg,
-            // new fields from OpenWeather response
-            weather: Array.isArray(json.weather) && json.weather.length > 0 ? json.weather[0] : null,
-            temp: json.main?.temp ?? null,
-          });
-        } else {
-          setWind(null);
+
+        if (!res.ok) {
+          if (res.status === 401 || res.status === 403) throw new Error('Invalid or unauthorized API key');
+          throw new Error(`HTTP ${res.status}`);
         }
+
+        const json = await res.json();
+
+        // Validate expected shapes (safe access)
+        const windObj = json && typeof json === 'object' ? json.wind : null;
+        const mainObj = json && typeof json === 'object' ? json.main : null;
+        const weatherArr = Array.isArray(json?.weather) ? json.weather : null;
+
+        if (!windObj || typeof windObj !== 'object' || typeof windObj.speed !== 'number') {
+          if (!mainObj && !weatherArr) {
+            throw new Error('No usable weather data in response');
+          }
+        }
+
+        const fromDeg = typeof windObj?.deg === 'number' ? windObj.deg : 0;
+        const toDeg = (fromDeg + 180) % 360;
+
+        const prepared = {
+          speed: typeof windObj?.speed === 'number' ? windObj.speed : null,
+          degFrom: fromDeg,
+          degTo: toDeg,
+          weather: weatherArr && weatherArr.length > 0 ? weatherArr[0] : null,
+          temp: typeof mainObj?.temp === 'number' ? mainObj.temp : null,
+        };
+
+        // store in cache
+        CACHE.set(key, { ts: Date.now(), data: prepared });
+
+        if (!mounted) return;
+        setWind({ ...prepared, sourcedFromCache: false });
       } catch (e) {
         if (mounted) setError(e.message);
       } finally {
@@ -78,15 +121,19 @@ export default function WindWidget({ lat, lon, apiKey, useDummy = false }) {
       }
     };
 
-    fetchWeather();
+    // debounce the initial fetch to avoid rapid calls when lat/lon change quickly
+    debounceTimer = setTimeout(() => {
+      fetchWeather();
+      // periodic refresh after initial fetch
+      intervalId = setInterval(fetchWeather, cacheTtlMs);
+    }, DEBOUNCE_MS);
 
-    // optional: refresh every 5 minutes
-    const id = setInterval(fetchWeather, 5 * 60 * 1000);
     return () => {
       mounted = false;
-      clearInterval(id);
+      if (debounceTimer) clearTimeout(debounceTimer);
+      if (intervalId) clearInterval(intervalId);
     };
-  }, [lat, lon, apiKey, useDummy]);
+  }, [lat, lon, apiKey, useDummy, cacheTtlMs]);
 
   if (!lat || !lon) {
     if (!useDummy) return null;
@@ -110,8 +157,8 @@ export default function WindWidget({ lat, lon, apiKey, useDummy = false }) {
       ) : wind ? (
         <View style={styles.wrap}>
           <View style={styles.row}>
-            <Text style={[styles.arrow, { transform: [{ rotate: `${wind.degTo}deg` }] }]}>↑</Text>
-            <Text style={styles.speed}>{wind.speed.toFixed(1)} m/s</Text>
+            <Text style={[styles.arrow, { transform: [{ rotate: `${wind.degTo ?? 0}deg` }] }]}>↑</Text>
+            <Text style={styles.speed}>{typeof wind.speed === 'number' ? wind.speed.toFixed(1) + ' m/s' : '—'}</Text>
             <Text style={styles.chev}>{expanded ? '▼' : '▲'}</Text>
           </View>
 
