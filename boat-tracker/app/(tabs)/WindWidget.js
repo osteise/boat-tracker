@@ -90,6 +90,13 @@ export default function WindWidget({ lat, lon, apiKey, useDummy = false, cacheTt
       setError(null);
       let prepared = null;
       let json = null;
+      // Validate lat/lon before constructing the URL
+      const isValidCoord = (v, min, max) => typeof v === 'number' && isFinite(v) && v >= min && v <= max;
+      if (!isValidCoord(lat, -90, 90) || !isValidCoord(lon, -180, 180)) {
+        setError('Invalid latitude or longitude');
+        setLoading(false);
+        return;
+      }
       try {
         const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`;
         const res = await fetch(url);
