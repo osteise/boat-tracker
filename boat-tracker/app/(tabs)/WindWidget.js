@@ -1,10 +1,28 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Image,
+  StyleSheet,
+  Text,
+  View,
+  TouchableOpacity,
+  LayoutAnimation,
+  Platform,
+  UIManager,
+} from 'react-native';
 
 export default function WindWidget({ lat, lon, apiKey, useDummy = false }) {
   const [wind, setWind] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [expanded, setExpanded] = useState(false);
+
+  // enable LayoutAnimation on Android
+  useEffect(() => {
+    if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+      UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+  }, []);
 
   useEffect(() => {
     // If using dummy data, set a simple static wind and skip network calls
@@ -12,9 +30,12 @@ export default function WindWidget({ lat, lon, apiKey, useDummy = false }) {
       setError(null);
       setLoading(false);
       setWind({
-        speed: 5.2,         // m/s
-        degFrom: 270,       // coming FROM west
+        speed: 5.2, // m/s
+        degFrom: 270, // coming FROM west
         degTo: (270 + 180) % 360,
+        // added weather + temp for dummy
+        weather: { main: 'Clear', description: 'clear sky', icon: '01d' },
+        temp: 12.3,
       });
       return;
     }
@@ -36,15 +57,16 @@ export default function WindWidget({ lat, lon, apiKey, useDummy = false }) {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
         if (!mounted) return;
-        if (json && json.wind) {
-          // OpenWeather wind.deg is the direction the wind is coming FROM (meteorological).
-          // To draw arrow showing where the wind is GOING, add 180deg.
-          const fromDeg = json.wind.deg ?? 0;
+        if (json) {
+          const fromDeg = json.wind?.deg ?? 0;
           const toDeg = (fromDeg + 180) % 360;
           setWind({
-            speed: json.wind.speed ?? 0,
+            speed: json.wind?.speed ?? 0,
             degFrom: fromDeg,
             degTo: toDeg,
+            // new fields from OpenWeather response
+            weather: Array.isArray(json.weather) && json.weather.length > 0 ? json.weather[0] : null,
+            temp: json.main?.temp ?? null,
           });
         } else {
           setWind(null);
@@ -64,36 +86,61 @@ export default function WindWidget({ lat, lon, apiKey, useDummy = false }) {
       mounted = false;
       clearInterval(id);
     };
-  }, [lat, lon, apiKey]);
+  }, [lat, lon, apiKey, useDummy]);
 
   if (!lat || !lon) {
     if (!useDummy) return null;
   }
 
-  return (
-    <View style={styles.container}>
-      {/* <Text style={styles.title}>Wind</Text> */}
+  const onToggle = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpanded((s) => !s);
+  };
 
+  return (
+    <TouchableOpacity
+      activeOpacity={0.9}
+      onPress={onToggle}
+      style={[styles.container, expanded ? styles.containerExpanded : null]}
+    >
       {loading ? (
         <ActivityIndicator />
       ) : error ? (
         <Text style={styles.error}>{error}</Text>
       ) : wind ? (
-        <View style={styles.row}>
-          <Text
-            style={[
-              styles.arrow,
-              { transform: [{ rotate: `${wind.degTo}deg` }] },
-            ]}
-          >
-            ↑
-          </Text>
-          <Text style={styles.speed}>{wind.speed.toFixed(1)} m/s</Text>
+        <View style={styles.wrap}>
+          <View style={styles.row}>
+            <Text style={[styles.arrow, { transform: [{ rotate: `${wind.degTo}deg` }] }]}>↑</Text>
+            <Text style={styles.speed}>{wind.speed.toFixed(1)} m/s</Text>
+            <Text style={styles.chev}>{expanded ? '▼' : '▲'}</Text>
+          </View>
+
+          {/* weather + temp - only visible when expanded */}
+          {expanded && (wind.weather || typeof wind.temp === 'number') ? (
+            <View style={styles.weatherRow}>
+              {wind.weather?.icon ? (
+                <Image
+                  source={{ uri: `https://openweathermap.org/img/wn/${wind.weather.icon}@2x.png` }}
+                  style={styles.icon}
+                />
+              ) : null}
+              <View>
+                {typeof wind.temp === 'number' ? (
+                  <Text style={styles.temp}>{wind.temp.toFixed(1)}°C</Text>
+                ) : null}
+                {wind.weather?.description ? (
+                  <Text style={styles.description}>{wind.weather.description}</Text>
+                ) : wind.weather?.main ? (
+                  <Text style={styles.description}>{wind.weather.main}</Text>
+                ) : null}
+              </View>
+            </View>
+          ) : null}
         </View>
       ) : (
         <Text style={styles.noData}>No data</Text>
       )}
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -113,14 +160,20 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowRadius: 2,
   },
-  title: {
-    fontSize: 12,
-    fontWeight: '700',
-    marginBottom: 4,
+  containerExpanded: {
+    alignItems: 'flex-start',
+  },
+  wrap: {
+    alignItems: 'flex-start',
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  chev: {
+    marginLeft: 8,
+    fontSize: 12,
+    color: '#444',
   },
   arrow: {
     fontSize: 22,
@@ -129,6 +182,24 @@ const styles = StyleSheet.create({
   speed: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  weatherRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  icon: {
+    width: 44,
+    height: 44,
+    marginRight: 8,
+  },
+  temp: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  description: {
+    fontSize: 12,
+    color: '#333',
   },
   error: {
     color: 'red',
