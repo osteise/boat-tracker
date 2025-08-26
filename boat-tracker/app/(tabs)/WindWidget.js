@@ -85,63 +85,67 @@ export default function WindWidget({ lat, lon, apiKey, useDummy = false, cacheTt
     const DEBOUNCE_MS = 2000; // wait 2s for location stabilization
     let debounceTimer = null;
 
+    function isValidCoord(v, min, max) {
+      return typeof v === 'number' && isFinite(v) && v >= min && v <= max;
+    }
+
+    async function fetchWeatherApi(lat, lon, apiKey) {
+      const url = new URL('https://api.openweathermap.org/data/2.5/weather');
+      url.search = new URLSearchParams({
+        lat: String(lat),
+        lon: String(lon),
+        appid: apiKey,
+        units: 'metric',
+      }).toString();
+      const res = await fetch(url.toString());
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) throw new Error('Invalid or unauthorized API key');
+        throw new Error(`HTTP ${res.status}`);
+      }
+      return res.json();
+    }
+
+    function parseWeatherResponse(json) {
+      const windObj = json && typeof json === 'object' ? json.wind : null;
+      const mainObj = json && typeof json === 'object' ? json.main : null;
+      const weatherArr = Array.isArray(json?.weather) ? json.weather : null;
+
+      if (!windObj || typeof windObj !== 'object' || typeof windObj.speed !== 'number') {
+        if (!mainObj && !weatherArr) {
+          throw new Error('No usable weather data in response');
+        }
+      }
+
+      const fromDeg = typeof windObj?.deg === 'number' ? windObj.deg : 0;
+      const toDeg = (fromDeg + 180) % 360;
+
+      return {
+        speed: typeof windObj?.speed === 'number' ? windObj.speed : null,
+        degFrom: fromDeg,
+        degTo: toDeg,
+        weather: weatherArr && weatherArr.length > 0 ? weatherArr[0] : null,
+        temp: typeof mainObj?.temp === 'number' ? mainObj.temp : null,
+      };
+    }
+
     const fetchWeather = async () => {
       setLoading(true);
       setError(null);
       let prepared = null;
       let json = null;
-      // Validate lat/lon before constructing the URL
-      const isValidCoord = (v, min, max) => typeof v === 'number' && isFinite(v) && v >= min && v <= max;
       if (!isValidCoord(lat, -90, 90) || !isValidCoord(lon, -180, 180)) {
         setError('Invalid latitude or longitude');
         setLoading(false);
         return;
       }
       try {
-        const url = new URL('https://api.openweathermap.org/data/2.5/weather');
-        url.search = new URLSearchParams({
-          lat: String(lat),
-          lon: String(lon),
-          appid: apiKey,
-          units: 'metric',
-        }).toString();
-        const res = await fetch(url.toString());
-
-        if (!res.ok) {
-          if (res.status === 401 || res.status === 403) throw new Error('Invalid or unauthorized API key');
-          throw new Error(`HTTP ${res.status}`);
-        }
-
-        json = await res.json();
-
-        // Validate expected shapes (safe access)
-        const windObj = json && typeof json === 'object' ? json.wind : null;
-        const mainObj = json && typeof json === 'object' ? json.main : null;
-        const weatherArr = Array.isArray(json?.weather) ? json.weather : null;
-
-        if (!windObj || typeof windObj !== 'object' || typeof windObj.speed !== 'number') {
-          if (!mainObj && !weatherArr) {
-            throw new Error('No usable weather data in response');
-          }
-        }
-
-        const fromDeg = typeof windObj?.deg === 'number' ? windObj.deg : 0;
-        const toDeg = (fromDeg + 180) % 360;
-
-        prepared = {
-          speed: typeof windObj?.speed === 'number' ? windObj.speed : null,
-          degFrom: fromDeg,
-          degTo: toDeg,
-          weather: weatherArr && weatherArr.length > 0 ? weatherArr[0] : null,
-          temp: typeof mainObj?.temp === 'number' ? mainObj.temp : null,
-        };
-
+        json = await fetchWeatherApi(lat, lon, apiKey);
+        prepared = parseWeatherResponse(json);
         if (!mounted) return;
         setWind({ ...prepared, sourcedFromCache: false });
       } catch (e) {
         if (mounted) setError(e.message);
       } finally {
-        // Only cache if we got a valid response from the API
         if (json && prepared) {
           setCacheWithLimit(key, { ts: Date.now(), data: prepared });
         }
