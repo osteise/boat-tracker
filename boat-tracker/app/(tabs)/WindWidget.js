@@ -88,6 +88,8 @@ export default function WindWidget({ lat, lon, apiKey, useDummy = false, cacheTt
     const fetchWeather = async () => {
       setLoading(true);
       setError(null);
+      let prepared = null;
+      let json = null;
       try {
         const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`;
         const res = await fetch(url);
@@ -97,7 +99,7 @@ export default function WindWidget({ lat, lon, apiKey, useDummy = false, cacheTt
           throw new Error(`HTTP ${res.status}`);
         }
 
-        const json = await res.json();
+        json = await res.json();
 
         // Validate expected shapes (safe access)
         const windObj = json && typeof json === 'object' ? json.wind : null;
@@ -113,7 +115,7 @@ export default function WindWidget({ lat, lon, apiKey, useDummy = false, cacheTt
         const fromDeg = typeof windObj?.deg === 'number' ? windObj.deg : 0;
         const toDeg = (fromDeg + 180) % 360;
 
-        const prepared = {
+        prepared = {
           speed: typeof windObj?.speed === 'number' ? windObj.speed : null,
           degFrom: fromDeg,
           degTo: toDeg,
@@ -121,14 +123,15 @@ export default function WindWidget({ lat, lon, apiKey, useDummy = false, cacheTt
           temp: typeof mainObj?.temp === 'number' ? mainObj.temp : null,
         };
 
-      // store in cache with size limit
-      setCacheWithLimit(key, { ts: Date.now(), data: prepared });
-
         if (!mounted) return;
         setWind({ ...prepared, sourcedFromCache: false });
       } catch (e) {
         if (mounted) setError(e.message);
       } finally {
+        // Only cache if we got a valid response from the API
+        if (json && prepared) {
+          setCacheWithLimit(key, { ts: Date.now(), data: prepared });
+        }
         if (mounted) setLoading(false);
       }
     };

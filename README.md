@@ -13,4 +13,3 @@ Props:
 Notes:
 - Response is validated; partial responses are handled.
 - In-memory cache reduces API calls; for multi-session persistence consider AsyncStorage.
-- Unit tests live under `__tests__/WindWidget.test.js`.
