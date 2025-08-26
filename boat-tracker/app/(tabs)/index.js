@@ -2,12 +2,19 @@ import * as Location from 'expo-location';
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
+import WindWidget from './WindWidget';
+
+import Constants from 'expo-constants';
 
 export default function HomeScreen() {
   const [location, setLocation] = useState(null);
   const [route, setRoute] = useState([]);
   const [followBoat, setFollowBoat] = useState(true);
   const mapRef = useRef(null);
+
+  // Put your OpenWeather API key here (do NOT commit). Better: load from env/config.
+  const OPENWEATHER_API_KEY = Constants.expoConfig?.extra?.OPENWEATHER_API_KEY ?? '';
+  // console.log(Constants.expoConfig?.extra?.OPENWEATHER_API_KEY ? 'OPENWEATHER key loaded' : 'OPENWEATHER key MISSING');
 
   // save current zoom/region delta to preserve it when following 
   const [regionDelta, setRegionDelta] = useState({
@@ -113,6 +120,15 @@ export default function HomeScreen() {
           />
         )}
       </MapView>
+
+      {/* Wind info overlay */}
+      {location && (
+        <WindWidget
+          lat={location.latitude}
+          lon={location.longitude}
+          apiKey={OPENWEATHER_API_KEY}
+        />
+      )}
 
       {/* Floating button: only visible when follow if OFF */}
       {!followBoat && (
