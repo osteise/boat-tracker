@@ -2,6 +2,7 @@ import * as Location from 'expo-location';
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 import SpeedDisplay from './SpeedDisplay';
 import WindWidget from './WindWidget';
 
@@ -154,7 +155,8 @@ export default function HomeScreen() {
             setFollowBoat(true);
           }}
         >
-          <Text style={styles.fabText}>📍 Follow</Text>
+          {/* <Text style={styles.fabText}>📍 Follow</Text> */}
+          <Icon name="my-location" size={24} color="#fff" />
         </TouchableOpacity>
       )}
     </View>
@@ -172,7 +174,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 30,
     right: 20,
-    backgroundColor: 'white',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     paddingVertical: 10,
     paddingHorizontal: 15,
     borderRadius: 20,
