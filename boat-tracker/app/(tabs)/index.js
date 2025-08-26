@@ -1,14 +1,35 @@
 import * as Location from 'expo-location';
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Marker, Polyline } from 'react-native-maps';
 
 export default function HomeScreen() {
   const [location, setLocation] = useState(null);
+  const [route, setRoute] = useState([]);
   const [followBoat, setFollowBoat] = useState(true);
   const mapRef = useRef(null);
 
+  // save current zoom/region delta to preserve it when following 
+  const [regionDelta, setRegionDelta] = useState({
+    latitudeDelta: 0.05,
+    longitudeDelta: 0.05,
+  });
+
+  // refs to hold latest values of watch-position callback without restarting subscription
+  const followRef = useRef(followBoat);
+  const regionDeltaRef = useRef(regionDelta);
+
   useEffect(() => {
+    followRef.current = followBoat;
+  }, [followBoat]);
+
+  useEffect(() => {
+    regionDeltaRef.current = regionDelta;
+  }, [regionDelta]);
+
+  useEffect(() => {
+    let subscription = null;
+
     (async () => {
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
@@ -16,23 +37,38 @@ export default function HomeScreen() {
         return;
       }
 
-      Location.watchPositionAsync(
-        { accuracy: Location.Accuracy.High, distanceInterval: 1 },
-        (loc) => {
-          setLocation(loc.coords);
+      subscription = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.High,
+          timeInterval: 1000,
+          distanceInterval: 1,
+        },
+        (pos) => {
+          const coords = pos.coords;
+          setLocation(coords);
 
-          if (followBoat && mapRef.current) {
+          setRoute((prev) => [
+            ...prev,
+            { latitude: coords.latitude, longitude: coords.longitude },
+          ]);
+
+          // follow boat if toggled on — use latest saved delta via ref
+          if (followRef.current && mapRef.current) {
             mapRef.current.animateToRegion({
-              latitude: loc.coords.latitude,
-              longitude: loc.coords.longitude,
-              latitudeDelta: 0.01,
-              longitudeDelta: 0.01,
+              latitude: coords.latitude,
+              longitude: coords.longitude,
+              latitudeDelta: regionDeltaRef.current.latitudeDelta ?? 0.01,
+              longitudeDelta: regionDeltaRef.current.longitudeDelta ?? 0.01,
             });
           }
         }
       );
     })();
-  }, [followBoat]);
+
+    return () => {
+      if (subscription) subscription.remove();
+    };
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -45,6 +81,19 @@ export default function HomeScreen() {
           latitudeDelta: 0.05,
           longitudeDelta: 0.05,
         }}
+        // update regionDelta when user zooms/pans
+        onRegionChangeComplete={(region) =>
+          setRegionDelta({
+            latitudeDelta: region.latitudeDelta,
+            longitudeDelta: region.longitudeDelta,
+          })
+        }
+        // turn follow off when user manually pans the map
+        onPanDrag={() => {
+          if (followRef.current) {
+            setFollowBoat(false);
+          }
+        }}
       >
         {location && (
           <Marker
@@ -52,20 +101,38 @@ export default function HomeScreen() {
               latitude: location.latitude,
               longitude: location.longitude,
             }}
-            title="Min båt"
+            title="You"
+          />
+        )}
+
+        {route.length > 1 && (
+          <Polyline
+            coordinates={route}
+            strokeColor="#0000FF"
+            strokeWidth={4}
           />
         )}
       </MapView>
 
-      {/* Floating button */}
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => setFollowBoat(!followBoat)}
-      >
-        <Text style={styles.fabText}>
-          {followBoat ? "⏸ Sluta följa" : "📍 Följ båt"}
-        </Text>
-      </TouchableOpacity>
+      {/* Floating button: only visible when follow if OFF */}
+      {!followBoat && (
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => {
+            if (location && mapRef.current) {
+              mapRef.current.animateToRegion({
+                latitude: location.latitude,
+                longitude: location.longitude,
+                latitudeDelta: regionDeltaRef.current.latitudeDelta ?? 0.01,
+                longitudeDelta: regionDeltaRef.current.longitudeDelta ?? 0.01,
+              });
+            }
+            setFollowBoat(true);
+          }}
+        >
+          <Text style={styles.fabText}>📍 Follow</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
