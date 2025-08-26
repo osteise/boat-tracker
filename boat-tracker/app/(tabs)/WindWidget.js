@@ -13,7 +13,19 @@ import {
 
 // Simple in-memory cache: Map<key, {ts: number, data: object}>
 const CACHE = new Map();
+const CACHE_MAX_SIZE = 100; // Limit cache to 100 entries
 const DEFAULT_CACHE_TTL_MS = 4 * 60 * 1000; // 4 minutes
+
+function setCacheWithLimit(key, value) {
+  if (CACHE.size >= CACHE_MAX_SIZE) {
+    // Remove the oldest entry (first inserted)
+    const oldestKey = CACHE.keys().next().value;
+    if (oldestKey !== undefined) {
+      CACHE.delete(oldestKey);
+    }
+  }
+  CACHE.set(key, value);
+}
 
 function cacheKey(lat, lon) {
   // round to 4 decimals so tiny GPS jitter doesn't bust cache
@@ -70,7 +82,7 @@ export default function WindWidget({ lat, lon, apiKey, useDummy = false, cacheTt
     }
 
     let intervalId = null;
-    const DEBOUNCE_MS = 2000; // wait 1s for location stabilization
+    const DEBOUNCE_MS = 2000; // wait 2s for location stabilization
     let debounceTimer = null;
 
     const fetchWeather = async () => {
@@ -109,8 +121,8 @@ export default function WindWidget({ lat, lon, apiKey, useDummy = false, cacheTt
           temp: typeof mainObj?.temp === 'number' ? mainObj.temp : null,
         };
 
-        // store in cache
-        CACHE.set(key, { ts: Date.now(), data: prepared });
+      // store in cache with size limit
+      setCacheWithLimit(key, { ts: Date.now(), data: prepared });
 
         if (!mounted) return;
         setWind({ ...prepared, sourcedFromCache: false });
