@@ -21,7 +21,14 @@ function cacheKey(lat, lon) {
   return `${r(lat)}|${r(lon)}`;
 }
 
-export default function WindWidget({ lat, lon, apiKey, useDummy = false, cacheTtlMs = DEFAULT_CACHE_TTL_MS }) {
+export default function WindWidget({
+  lat,
+  lon,
+  apiKey,
+  useDummy = false,
+  cacheTtlMs = DEFAULT_CACHE_TTL_MS,
+  debounceMs = 2000, // made configurable for tests
+}) {
   const [wind, setWind] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -70,8 +77,15 @@ export default function WindWidget({ lat, lon, apiKey, useDummy = false, cacheTt
     }
 
     let intervalId = null;
-    const DEBOUNCE_MS = 2000; // wait 1s for location stabilization
+    const DEBOUNCE_MS = debounceMs; // wait 1s for location stabilization
     let debounceTimer = null;
+
+    // debounce the initial fetch to avoid rapid calls when lat/lon change quickly
+    debounceTimer = setTimeout(() => {
+      fetchWeather();
+      // periodic refresh after initial fetch
+      intervalId = setInterval(fetchWeather, cacheTtlMs);
+    }, DEBOUNCE_MS);
 
     const fetchWeather = async () => {
       setLoading(true);
@@ -120,13 +134,6 @@ export default function WindWidget({ lat, lon, apiKey, useDummy = false, cacheTt
         if (mounted) setLoading(false);
       }
     };
-
-    // debounce the initial fetch to avoid rapid calls when lat/lon change quickly
-    debounceTimer = setTimeout(() => {
-      fetchWeather();
-      // periodic refresh after initial fetch
-      intervalId = setInterval(fetchWeather, cacheTtlMs);
-    }, DEBOUNCE_MS);
 
     return () => {
       mounted = false;
