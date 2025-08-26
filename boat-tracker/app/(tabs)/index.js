@@ -15,8 +15,7 @@ export default function HomeScreen() {
     longitudeDelta: 0.05,
   });
 
-  // refs så vi kan läsa senaste värden inne i watch-position-callback utan
-  // att behöva starta om subscriptionen
+  // refs to hold latest values of watch-position callback without restarting subscription
   const followRef = useRef(followBoat);
   const regionDeltaRef = useRef(regionDelta);
 
@@ -53,7 +52,7 @@ export default function HomeScreen() {
             { latitude: coords.latitude, longitude: coords.longitude },
           ]);
 
-          // Följ båten om togglat på — använd senaste sparade delta via ref
+          // follow boat if toggled on — use latest saved delta via ref
           if (followRef.current && mapRef.current) {
             mapRef.current.animateToRegion({
               latitude: coords.latitude,
