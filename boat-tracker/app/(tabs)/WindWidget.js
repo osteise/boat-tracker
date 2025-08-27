@@ -290,6 +290,6 @@ const styles = StyleSheet.create({
   },
   noData: {
     fontSize: 12,
-    color : '#fff',
+    color: '#fff',
   },
 });

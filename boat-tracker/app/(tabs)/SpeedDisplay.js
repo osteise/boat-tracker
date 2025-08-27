@@ -2,27 +2,17 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
 export default function SpeedDisplay({ speed }) {
-  const thresholdKmh = 0.5; // Minimum speed to display km/h
-  const thresholdKnots = 0.5; // Minimum speed to display knots
-
-  // Calculate speeds as numbers, fallback to 0 if invalid
+  // Calculate speeds as numbers, fallback to undefined if invalid
   const speedKmh = typeof speed === 'number' && !isNaN(speed) ? speed * 3.6 : undefined;
   const speedKnots = typeof speed === 'number' && !isNaN(speed) ? speed * 1.94384 : undefined;
 
-  // Display logic with safe fallback
-  const displaySpeedKmh =
-    speedKmh !== undefined && speedKmh >= thresholdKmh
-      ? speedKmh.toFixed(2)
-      : speedKmh !== undefined
-        ? speedKmh.toFixed(2)
-        : '--';
+  // Threshold below which to show '--' (e.g., 5 km/h)
+  const minDisplayKmh = 5;
+  const minDisplayKnots = minDisplayKmh * 0.539957; // 1 km/h ≈ 0.539957 knots
 
-  const displaySpeedKnots =
-    speedKnots !== undefined && speedKnots >= thresholdKnots
-      ? speedKnots.toFixed(2)
-      : speedKnots !== undefined
-        ? speedKnots.toFixed(2)
-        : '--';
+  // Display logic: show value if above threshold, otherwise '--'
+  const displaySpeedKmh = speedKmh !== undefined && speedKmh >= minDisplayKmh ? speedKmh.toFixed(2) : '--';
+  const displaySpeedKnots = speedKnots !== undefined && speedKnots >= minDisplayKnots ? speedKnots.toFixed(2) : '--';
 
   return (
     <View style={styles.container}>
