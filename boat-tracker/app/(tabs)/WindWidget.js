@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
   chev: {
     marginLeft: 8,
     fontSize: 12,
-    color: '#444',
+    color: '#fff',
   },
   arrow: {
     fontSize: 22,
@@ -290,5 +290,6 @@ const styles = StyleSheet.create({
   },
   noData: {
     fontSize: 12,
+    color : '#fff',
   },
 });
