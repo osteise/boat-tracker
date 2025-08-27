@@ -125,7 +125,7 @@ export default function HomeScreen() {
 
       {/* Speed overlay */}
       {location && (
-        <View style={{ position: 'absolute', top: 40, left: 20, zIndex: 10 }}>
+        <View style={styles.speedOverlay}>
           <SpeedDisplay speed={location.speed} />
         </View>
       )}
@@ -187,5 +187,11 @@ const styles = StyleSheet.create({
   fabText: {
     fontSize: 14,
     fontWeight: 'bold',
+  },
+  speedOverlay: {
+    position: 'absolute',
+    top: 40,
+    left: 24,
+    zIndex: 10,
   },
 });

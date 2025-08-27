@@ -2,13 +2,15 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
 export default function SpeedDisplay({ speed }) {
+  const KMH_TO_KNOTS = 0.539957;
+  const MS_TO_KNOTS = 1.94384;
   // Calculate speeds as numbers, fallback to undefined if invalid
   const speedKmh = typeof speed === 'number' && !isNaN(speed) ? speed * 3.6 : undefined;
-  const speedKnots = typeof speed === 'number' && !isNaN(speed) ? speed * 1.94384 : undefined;
+  const speedKnots = typeof speed === 'number' && !isNaN(speed) ? speed * MS_TO_KNOTS : undefined;
 
   // Threshold below which to show '--' (e.g., 5 km/h)
   const minDisplayKmh = 5;
-  const minDisplayKnots = minDisplayKmh * 0.539957; // 1 km/h ≈ 0.539957 knots
+  const minDisplayKnots = minDisplayKmh * KMH_TO_KNOTS; // 1 km/h ≈ 0.539957 knots
 
   // Display logic: show value if above threshold, otherwise '--'
   const displaySpeedKmh = speedKmh !== undefined && speedKmh >= minDisplayKmh ? speedKmh.toFixed(2) : '--';
