@@ -27,7 +27,6 @@ export default function SpeedDisplay({ speed }) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'rgba(0,0,0,0.6)',
     borderRadius: 8,
     padding: 10,
     alignItems: 'center',

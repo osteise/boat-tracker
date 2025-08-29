@@ -5,6 +5,7 @@ import MapView, { Marker, Polyline } from 'react-native-maps';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import SpeedDisplay from './SpeedDisplay';
 import WindWidget from './WindWidget';
+import Compass from './Compass';
 
 import Constants from 'expo-constants';
 
@@ -119,25 +120,16 @@ export default function HomeScreen() {
             coordinates={route}
             strokeColor="#0000FF"
             strokeWidth={4}
+          <WindWidget
+            lat={location.latitude}
           />
         )}
-      </MapView>
 
       {/* Speed overlay */}
-      {location && (
-        <View style={styles.speedOverlay}>
           <SpeedDisplay speed={location.speed} />
         </View>
-      )}
-
-      {/* Wind info overlay */}
-      {location && (
-        <WindWidget
-          lat={location.latitude}
-          lon={location.longitude}
-          apiKey={OPENWEATHER_API_KEY}
-        />
-      )}
+        <Compass />
+      </View>
 
       {/* Floating button: only visible when follow if OFF */}
       {!followBoat && (
@@ -193,5 +185,19 @@ const styles = StyleSheet.create({
     top: 40,
     left: 24,
     zIndex: 10,
+  },
+  widgetBar: {
+    position: 'absolute',
+    top: 40, // or bottom: 40 for bottom placement
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    zIndex: 20,
+    backgroundColor: 'rgba(0,0,0,0.4)', 
+    borderRadius: 12,
   },
 });

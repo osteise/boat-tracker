@@ -225,10 +225,6 @@ export default function WindWidget({ lat, lon, apiKey, useDummy = false, cacheTt
 
 const styles = StyleSheet.create({
   container: {
-    position: 'absolute',
-    top: 40,
-    right: 24,
-    backgroundColor: 'rgba(0,0,0,0.6)',
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: 8,
